@@ -8,13 +8,13 @@
 #define GRID_PAD      CELL_SIZE
 #define SCREEN_WIDTH  GRID_WIDTH  + GRID_PAD
 #define SCREEN_HEIGHT GRID_HEIGHT + GRID_PAD
-#define GRID_ROWS     10
-#define GRID_COLS     20
+#define GRID_ROWS     20
+#define GRID_COLS     10
 
 #define VEC(xx, yy) (Vector2) {.x = (xx), .y = (yy)}
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
-#define out_of_bounds(x, y) ((x) < 0 || (x) >= GRID_ROWS || (y) < 0 || (y) >= GRID_COLS)
+#define out_of_bounds(x, y) ((x) < 0 || (x) >= GRID_COLS || (y) < 0 || (y) >= GRID_ROWS)
 
 int vel_y = 50;
 float t = 0.0;
@@ -164,9 +164,9 @@ void move_block() {
 }
 
 void set_block() {
-    for (int x = 0; x < GRID_ROWS; x++) {
-        for (int y = 0; y < GRID_COLS; y++) {
-            grid[x][y] = 0;
+    for (int y = 0; y < GRID_ROWS; y++) {
+        for (int x = 0; x < GRID_COLS; x++) {
+            grid[y][x] = 0;
         }
     }
 
@@ -176,17 +176,17 @@ void set_block() {
             int nx = block.x + x;
             int ny = block.y + y;
             if (!out_of_bounds(nx, ny)) {
-                grid[nx][ny] = patterns[block.type][rot_offset + y][x];
+                grid[ny][nx] = patterns[block.type][rot_offset + y][x];
             }
         }
     }
 }
 
 void draw_cells() {
-    for (int x = 0; x < GRID_ROWS; x++) {
-        for (int y = 0; y < GRID_COLS; y++) {
+    for (int y = 0; y < GRID_ROWS; y++) {
+        for (int x = 0; x < GRID_COLS; x++) {
             Vector2 pos = grid_to_world(x, y);
-            if (grid[x][y] == 1) {
+            if (grid[y][x] == 1) {
                 DrawRectangleV(pos, VEC(CELL_SIZE, CELL_SIZE), PURPLE);
             }
             // else if (grid[x][y] == 2) {
@@ -199,11 +199,11 @@ void draw_cells() {
 void draw_grid() {
     const int x0 = GRID_PAD/2;
     const int y0 = GRID_PAD/2;
-    for (int x = 0; x <= GRID_ROWS; x++) {
+    for (int x = 0; x <= GRID_COLS; x++) {
         DrawLine(x*CELL_SIZE + x0, y0, x*CELL_SIZE + x0, GRID_HEIGHT + y0, WHITE);
     }
 
-    for (int y = 0; y <= GRID_COLS; y++) {
+    for (int y = 0; y <= GRID_ROWS; y++) {
         DrawLine(x0, y*CELL_SIZE + y0, GRID_WIDTH + x0, y*CELL_SIZE + y0, WHITE);
     }
 }
