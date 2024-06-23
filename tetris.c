@@ -29,7 +29,10 @@ struct Game {
 struct Game game = {0};
 
 Vector2 grid_to_world(int x, int y) {
-    return VEC(x*CELL_SIZE + GRID_PAD/2, y*CELL_SIZE + GRID_PAD/2);
+    return (Vector2) {
+        .x = x*CELL_SIZE + GRID_PAD/2,
+        .y = y*CELL_SIZE + GRID_PAD/2
+    };
 }
 
 enum {
@@ -37,8 +40,6 @@ enum {
     BLOCK    ,
     OCCUPIED ,
 } Cell_State;
-
-#define PSIZE 4
 
 typedef struct {
     int type;
@@ -49,6 +50,8 @@ typedef struct {
 Block block = {0}; // One block at time
 
 #define PATTERNS_COUNT 7
+#define PSIZE 4
+
 int patterns[PATTERNS_COUNT][PSIZE*4][PSIZE] = {
     { // square
         {0, 1, 1, 0},
@@ -199,7 +202,6 @@ int patterns[PATTERNS_COUNT][PSIZE*4][PSIZE] = {
     }
 };
 
-#define CIAN
 Color patterns_colors[PATTERNS_COUNT] = {
 //  square, line   , revolver 1, revolver 2, torneira, skibidi 1, skibidi 2
     YELLOW, SKYBLUE, BLUE      , ORANGE    , PURPLE  , RED      , GREEN
@@ -215,9 +217,6 @@ Move_Result check_cell(int x, int y) {
     int cell_state = patterns[block.type][block.rotation*4 + y][x];
     int nx = block.x + x;
     int ny = block.y + y;
-    // move is possible = out of bounds? cell cannot be BLOCK
-    // if this move is possible, we have to check if the cell
-    // that we are trying to visit with block inst already occupied
     if (out_of_bounds(nx, ny) && cell_state == BLOCK) {
         return MOVE_OUT_OF_BOUNDS;
     } else if (game.grid[ny][nx] == OCCUPIED && cell_state == BLOCK) {
