@@ -10,16 +10,22 @@
 #define SCREEN_HEIGHT GRID_HEIGHT + GRID_PAD
 #define GRID_ROWS     20
 #define GRID_COLS     10
+#define VEL_Y         500
 
 #define VEC(xx, yy) (Vector2) {.x = (xx), .y = (yy)}
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define out_of_bounds(x, y) ((x) < 0 || (x) >= GRID_COLS || (y) < 0 || (y) >= GRID_ROWS)
 
-int vel_y = 500;
-float t = 0.0;
+struct Game {
+    int vel_y;
+    int over;
+    float t;
+    int points;
+    int grid[GRID_ROWS][GRID_COLS];
+};
 
-int grid[GRID_ROWS][GRID_COLS] = {0};
+struct Game game = {0};
 
 Vector2 grid_to_world(int x, int y) {
     return VEC(x*CELL_SIZE + GRID_PAD/2, y*CELL_SIZE + GRID_PAD/2);
@@ -198,26 +204,39 @@ Color patterns_colors[PATTERNS_COUNT] = {
     YELLOW, SKYBLUE, BLUE      , ORANGE    , PURPLE  , RED      , GREEN
 };
 
-int is_move_possible(int x, int y) {
+typedef enum {
+    MOVE_OK = 1          ,
+    MOVE_OUT_OF_BOUNDS   ,
+    MOVE_ALREADY_OCCUPIED,
+} Move_Result;
+
+Move_Result check_cell(int x, int y) {
     int cell_state = patterns[block.type][block.rotation*4 + y][x];
     int nx = block.x + x;
     int ny = block.y + y;
     // move is possible = out of bounds? cell cannot be BLOCK
     // if this move is possible, we have to check if the cell
     // that we are trying to visit with block inst already occupied
-    return !(out_of_bounds(nx, ny) && cell_state == BLOCK) && !(grid[ny][nx] == OCCUPIED && cell_state == BLOCK);
+    if (out_of_bounds(nx, ny) && cell_state == BLOCK) {
+        return MOVE_OUT_OF_BOUNDS;
+    } else if (game.grid[ny][nx] == OCCUPIED && cell_state == BLOCK) {
+        return MOVE_ALREADY_OCCUPIED;
+    } else {
+        return MOVE_OK;
+    }
 }
 
-int block_in_impossible_state() {
+Move_Result do_move() {
     for (int x = 0 ; x < PSIZE; x++) {
         for (int y = 0; y < PSIZE; y++) {
-            if (!is_move_possible(x, y)) {
-                return 1;
+            Move_Result result = check_cell(x, y);
+            if (result != MOVE_OK) {
+                return result;
             }
         }
     }
 
-    return 0;
+    return MOVE_OK;
 }
 
 void rotate_block() {
@@ -226,7 +245,7 @@ void rotate_block() {
         block.rotation += 1;
         block.rotation %= 4;
 
-        if (block_in_impossible_state()) {
+        if (do_move() != MOVE_OK) {
             block.rotation = last_rot;
         }
     }
@@ -236,16 +255,25 @@ void check_points() {
     for (int y = 0; y < GRID_ROWS; y++) {
         int cnt = 0;
         for (int x = 0; x < GRID_COLS; x++) {
-            if (grid[y][x] == OCCUPIED) cnt += 1;
+            if (game.grid[y][x] == OCCUPIED) cnt += 1;
         }
 
-        if (cnt != GRID_COLS) continue;
-        for (int y2 = y; y2 > 0; y2--) {
-            for (int x = 0; x < GRID_COLS; x++) {
-                grid[y2][x] = grid[y2 - 1][x];
+        if (cnt == GRID_COLS) {
+            game.points += 1;
+            for (int y2 = y; y2 > 0; y2--) {
+                for (int x = 0; x < GRID_COLS; x++) {
+                    game.grid[y2][x] = game.grid[y2 - 1][x];
+                }
             }
         }
     }
+}
+
+void new_block() {
+    block.y = 0;
+    block.x = GRID_COLS/2 - 1;
+    block.type += 1;
+    block.type %= PATTERNS_COUNT;
 }
 
 void move_block() {
@@ -259,37 +287,38 @@ void move_block() {
         block.x += 1;
     }
 
-    if (block_in_impossible_state()) {
+    if (do_move() != MOVE_OK) {
         block.x = last_x;
     }
 
     if (IsKeyDown(KEY_DOWN)) {
-        vel_y = 500/10;
+        game.vel_y = VEL_Y/10;
     }
 
     if (IsKeyUp(KEY_DOWN)) {
-        vel_y = 500;
+        game.vel_y = VEL_Y;
     }
 
-    t += GetFrameTime() * 1000;
-    if (t >= vel_y) {
-        t = 0;
+    game.t += GetFrameTime() * 1000;
+    if (game.t >= game.vel_y) {
+        game.t = 0;
         block.y += 1;
-        if (block_in_impossible_state()) {
+        Move_Result result = do_move();
+        if (result != MOVE_OK) {
             block.y -= 1;
             for (int x = 0 ; x < PSIZE; x++) {
                 for (int y = 0; y < PSIZE; y++) {
                     int nx = block.x + x;
                     int ny = block.y + y;
-                    grid[ny][nx] = patterns[block.type][block.rotation*4 + y][x] == BLOCK ? OCCUPIED : grid[ny][nx];
+                    game.grid[ny][nx] = patterns[block.type][block.rotation*4 + y][x] == BLOCK ? OCCUPIED : game.grid[ny][nx];
                 }
             }
 
-            block.y = 0;
-            block.x = GRID_COLS/2;
-            block.type += 1;
-            block.type %= PATTERNS_COUNT;
+            new_block();
             check_points();
+            if (do_move() != MOVE_OK) {
+                game.over = 1;
+            }
         }
     }
 }
@@ -297,8 +326,8 @@ void move_block() {
 void set_block() {
     for (int y = 0; y < GRID_ROWS; y++) {
         for (int x = 0; x < GRID_COLS; x++) {
-            if (grid[y][x] == BLOCK) {
-                grid[y][x] = EMPTY;
+            if (game.grid[y][x] == BLOCK) {
+                game.grid[y][x] = EMPTY;
             }
         }
     }
@@ -310,7 +339,7 @@ void set_block() {
             int ny = block.y + y;
             if (!out_of_bounds(nx, ny)) {
                 if (patterns[block.type][rot_offset + y][x] == BLOCK) {
-                   grid[ny][nx] = patterns[block.type][rot_offset + y][x];
+                   game.grid[ny][nx] = patterns[block.type][rot_offset + y][x];
                 }
             }
         }
@@ -328,9 +357,9 @@ void draw_cells() {
                 .y = pos.y
             };
 
-            if (grid[y][x] == BLOCK) {
+            if (game.grid[y][x] == BLOCK) {
                 DrawRectangleRec(r, patterns_colors[block.type]);
-            } else if (grid[y][x] == OCCUPIED) {
+            } else if (game.grid[y][x] == OCCUPIED) {
                 DrawRectangleRec(r, WHITE);
                 DrawRectangleLinesEx(r, 1, BLACK);
             }
@@ -350,16 +379,33 @@ void draw_grid() {
     }
 }
 
+void init_game() {
+    for (int y = 0; y < GRID_ROWS; y++) {
+        for (int x = 0; x < GRID_COLS; x++) {
+            game.grid[y][x] = EMPTY;
+        }
+    }
+
+    game.points = 0;
+    game.over   = 0;
+    game.t      = 0;
+    game.vel_y  = VEL_Y;
+}
+
 int main(void) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "tetris");
 
-    block.type = 2;
-    block.x = 0;
+    init_game();
+    new_block();
     while (!WindowShouldClose()) {
         // updates
-        rotate_block();
-        move_block();
-        set_block();
+        if (game.over) {
+            // g
+        } else {
+            rotate_block();
+            move_block();
+            set_block();
+        }
 
         // draws
         BeginDrawing();
