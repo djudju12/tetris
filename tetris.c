@@ -3,11 +3,11 @@
 #include "raylib.h"
 
 #define GRID_WIDTH    350
-#define GRID_HEIGHT   GRID_WIDTH*2
-#define CELL_SIZE     GRID_WIDTH/10
+#define GRID_HEIGHT   (GRID_WIDTH*2)
+#define CELL_SIZE     (GRID_WIDTH/10)
 #define GRID_PAD      CELL_SIZE
-#define SCREEN_WIDTH  GRID_WIDTH  + GRID_PAD
-#define SCREEN_HEIGHT GRID_HEIGHT + GRID_PAD
+#define SCREEN_WIDTH  (GRID_WIDTH  + GRID_PAD)
+#define SCREEN_HEIGHT (GRID_HEIGHT + GRID_PAD)
 #define GRID_ROWS     20
 #define GRID_COLS     10
 #define VEL_Y         500
@@ -379,6 +379,23 @@ void draw_grid() {
     }
 }
 
+void draw_game_over() {
+    const int font_size = 48;
+    const int y0 = GRID_ROWS/2 - 2;
+    const int padx = 27;
+    const Color font_color = LIME;
+    char buff[32];
+    sprintf(buff, "%d", game.points);
+
+    Vector2 over   = grid_to_world(0, y0 - 3);
+    Vector2 score  = grid_to_world(0, y0 - 1);
+    Vector2 points = grid_to_world(0, y0 + 1);
+
+    DrawText("GAME OVER!", over.x   + padx, over.y  , font_size, font_color);
+    DrawText("SCORE:"    , score.x  + padx, score.y , font_size, font_color);
+    DrawText(buff        , points.x + padx, points.y, font_size, font_color);
+}
+
 void init_game() {
     for (int y = 0; y < GRID_ROWS; y++) {
         for (int x = 0; x < GRID_COLS; x++) {
@@ -390,17 +407,19 @@ void init_game() {
     game.over   = 0;
     game.t      = 0;
     game.vel_y  = VEL_Y;
+    new_block();
 }
 
 int main(void) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "tetris");
 
     init_game();
-    new_block();
     while (!WindowShouldClose()) {
         // updates
         if (game.over) {
-            // g
+            if (IsKeyPressed(KEY_SPACE)) {
+                init_game();
+            }
         } else {
             rotate_block();
             move_block();
@@ -413,6 +432,9 @@ int main(void) {
             ClearBackground(BLACK);
             draw_cells();
             draw_grid();
+            if (game.over) {
+                draw_game_over();
+            }
         }
         EndDrawing();
     }
