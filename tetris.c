@@ -192,6 +192,12 @@ int patterns[PATTERNS_COUNT][PSIZE*4][PSIZE] = {
     }
 };
 
+#define CIAN
+Color patterns_colors[PATTERNS_COUNT] = {
+//  square, line   , revolver 1, revolver 2, torneira, skibidi 1, skibidi 2
+    YELLOW, SKYBLUE, BLUE      , ORANGE    , PURPLE  , RED      , GREEN
+};
+
 int is_move_possible(int x, int y) {
     int cell_state = patterns[block.type][block.rotation*4 + y][x];
     int nx = block.x + x;
@@ -323,7 +329,7 @@ void draw_cells() {
             };
 
             if (grid[y][x] == BLOCK) {
-                DrawRectangleRec(r, PURPLE);
+                DrawRectangleRec(r, patterns_colors[block.type]);
             } else if (grid[y][x] == OCCUPIED) {
                 DrawRectangleRec(r, WHITE);
                 DrawRectangleLinesEx(r, 1, BLACK);
