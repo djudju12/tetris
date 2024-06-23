@@ -122,7 +122,6 @@ int block_in_impossible_state() {
     for (int x = 0 ; x < PSIZE; x++) {
         for (int y = 0; y < PSIZE; y++) {
             if (!is_move_possible(x, y)) {
-                TraceLog(LOG_INFO, "impossible move");
                 return 1;
             }
         }
@@ -143,8 +142,23 @@ void rotate_block() {
     }
 }
 
+void check_points() {
+    for (int y = 0; y < GRID_ROWS; y++) {
+        int cnt = 0;
+        for (int x = 0; x < GRID_COLS; x++) {
+            if (grid[y][x] == OCCUPIED) cnt += 1;
+        }
+
+        if (cnt != GRID_COLS) continue;
+        for (int y2 = y; y2 > 0; y2--) {
+            for (int x = 0; x < GRID_COLS; x++) {
+                grid[y2][x] = grid[y2 - 1][x];
+            }
+        }
+    }
+}
+
 void move_block() {
-    /* not implemented */
     const int last_x = block.x;
 
     if (IsKeyPressed(KEY_LEFT)) {
@@ -185,6 +199,7 @@ void move_block() {
             block.x = GRID_COLS/2;
             block.type += 1;
             block.type %= PATTERNS_COUNT;
+            check_points();
         }
     }
 }
