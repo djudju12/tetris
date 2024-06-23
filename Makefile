@@ -21,4 +21,4 @@ run: build
 	./tetris
 
 bin/:
-	mkdir bin
+	mkdir -p bin
