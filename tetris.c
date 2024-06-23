@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 
 #include "raylib.h"
 
@@ -272,8 +273,7 @@ void check_points() {
 void new_block() {
     block.y = 0;
     block.x = GRID_COLS/2 - 1;
-    block.type += 1;
-    block.type %= PATTERNS_COUNT;
+    block.type = GetRandomValue(0, PATTERNS_COUNT - 1);
 }
 
 void move_block() {
@@ -402,6 +402,8 @@ void init_game() {
             game.grid[y][x] = EMPTY;
         }
     }
+
+    SetRandomSeed(time(NULL));
 
     game.points = 0;
     game.over   = 0;
