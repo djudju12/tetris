@@ -16,7 +16,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define out_of_bounds(x, y) ((x) < 0 || (x) >= GRID_COLS || (y) < 0 || (y) >= GRID_ROWS)
 
-int vel_y = 50;
+int vel_y = 500;
 float t = 0.0;
 
 int grid[GRID_ROWS][GRID_COLS] = {0};
@@ -41,8 +41,8 @@ typedef struct {
 } Block;
 
 Block block = {0}; // One block at time
-
-int patterns[][PSIZE*4][PSIZE] = {
+#define PATTERNS_COUNT 3
+int patterns[PATTERNS_COUNT][PSIZE*4][PSIZE] = {
     {
         {1, 1, 2, 2},
         {1, 1, 2, 2},
@@ -109,16 +109,20 @@ int patterns[][PSIZE*4][PSIZE] = {
 };
 
 int is_move_possible(int x, int y) {
-    int block_state = patterns[block.type][block.rotation*4 + y][x];
+    int cell_state = patterns[block.type][block.rotation*4 + y][x];
     int nx = block.x + x;
     int ny = block.y + y;
-    return !((out_of_bounds(nx, ny) && block_state == BLOCK) && (grid[ny][nx] != OCCUPIED));
+    // move is possible = out of bounds? cell cannot be BLOCK
+    // if this move is possible, we have to check if the cell
+    // that we are trying to visit with block inst already occupied
+    return !(out_of_bounds(nx, ny) && cell_state == BLOCK) && !(grid[ny][nx] == OCCUPIED && cell_state == BLOCK);
 }
 
 int block_in_impossible_state() {
     for (int x = 0 ; x < PSIZE; x++) {
         for (int y = 0; y < PSIZE; y++) {
             if (!is_move_possible(x, y)) {
+                TraceLog(LOG_INFO, "impossible move");
                 return 1;
             }
         }
@@ -142,7 +146,6 @@ void rotate_block() {
 void move_block() {
     /* not implemented */
     const int last_x = block.x;
-    const int last_y = block.y;
 
     if (IsKeyPressed(KEY_LEFT)) {
         block.x -= 1;
@@ -156,25 +159,33 @@ void move_block() {
         block.x = last_x;
     }
 
+    if (IsKeyDown(KEY_DOWN)) {
+        vel_y = 500/10;
+    }
+
+    if (IsKeyUp(KEY_DOWN)) {
+        vel_y = 500;
+    }
 
     t += GetFrameTime() * 1000;
     if (t >= vel_y) {
         t = 0;
         block.y += 1;
-    }
-
-    int rot_offset = block.rotation*4;
-    if (block_in_impossible_state()) {
-        block.y -= 1;
-        for (int x = 0 ; x < PSIZE; x++) {
-            for (int y = 0; y < PSIZE; y++) {
-                int nx = block.x + x;
-                int ny = block.y + y;
-                grid[ny][nx] = patterns[block.type][rot_offset + y][x] == BLOCK ? OCCUPIED : EMPTY;
+        if (block_in_impossible_state()) {
+            block.y -= 1;
+            for (int x = 0 ; x < PSIZE; x++) {
+                for (int y = 0; y < PSIZE; y++) {
+                    int nx = block.x + x;
+                    int ny = block.y + y;
+                    grid[ny][nx] = patterns[block.type][block.rotation*4 + y][x] == BLOCK ? OCCUPIED : grid[ny][nx];
+                }
             }
-        }
 
-        block.y = 0;
+            block.y = 0;
+            block.x = GRID_COLS/2;
+            block.type += 1;
+            block.type %= PATTERNS_COUNT;
+        }
     }
 }
 
@@ -193,7 +204,9 @@ void set_block() {
             int nx = block.x + x;
             int ny = block.y + y;
             if (!out_of_bounds(nx, ny)) {
-                grid[ny][nx] = patterns[block.type][rot_offset + y][x];
+                if (patterns[block.type][rot_offset + y][x] == BLOCK) {
+                   grid[ny][nx] = patterns[block.type][rot_offset + y][x];
+                }
             }
         }
     }
@@ -203,15 +216,19 @@ void draw_cells() {
     for (int y = 0; y < GRID_ROWS; y++) {
         for (int x = 0; x < GRID_COLS; x++) {
             Vector2 pos = grid_to_world(x, y);
-            if (grid[y][x] == BLOCK) {
-                DrawRectangleV(pos, VEC(CELL_SIZE, CELL_SIZE), PURPLE);
-            } else if (grid[y][x] == OCCUPIED) {
-                DrawRectangleV(pos, VEC(CELL_SIZE, CELL_SIZE), WHITE);
-            }
+            Rectangle r = (Rectangle) {
+                .height = CELL_SIZE,
+                .width = CELL_SIZE,
+                .x = pos.x,
+                .y = pos.y
+            };
 
-            // else if (grid[x][y] == 2) {
-            //     DrawRectangleV(pos, VEC(CELL_SIZE, CELL_SIZE), LIME);
-            // }
+            if (grid[y][x] == BLOCK) {
+                DrawRectangleRec(r, PURPLE);
+            } else if (grid[y][x] == OCCUPIED) {
+                DrawRectangleRec(r, WHITE);
+                DrawRectangleLinesEx(r, 1, BLACK);
+            }
         }
     }
 }
